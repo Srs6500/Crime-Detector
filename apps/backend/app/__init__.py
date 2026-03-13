@@ -1,0 +1,1 @@
+# Krogan backend application
