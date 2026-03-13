@@ -1,0 +1,27 @@
+# XcodeGen spec for Krogan iOS app. Run: xcodegen generate (from this directory)
+name: Krogan
+options:
+  deploymentTarget:
+    iOS: "18.0"
+  bundleIdPrefix: com.krogan
+settings:
+  MARKETING_VERSION: "0.1.0"
+  CURRENT_PROJECT_VERSION: "1"
+  SWIFT_VERSION: "6.0"
+  DEVELOPMENT_TEAM: ""
+  CODE_SIGN_STYLE: Manual
+targets:
+  Krogan:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Krogan
+        group: Krogan
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.krogan.app
+      INFOPLIST_FILE: Krogan/Info.plist
+      TARGETED_DEVICE_FAMILY: "1,2"
+      SWIFT_EMIT_LOCALIZATION_STRINGS: YES
+      ENABLE_PREVIEWS: YES
+    dependencies: []
