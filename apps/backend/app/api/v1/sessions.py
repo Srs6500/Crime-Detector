@@ -24,6 +24,10 @@ class SessionCreateBody(BaseModel):
     eta_minutes: int | None = None
 
 
+class SessionEscalateBody(BaseModel):
+    trigger: str = "user_tap"
+
+
 @router.post("/sessions")
 async def create_session(
     body: SessionCreateBody,
@@ -100,3 +104,31 @@ async def end_session(
     await db.flush()
     await db.refresh(session)
     return session.to_response()
+
+
+@router.post("/sessions/{session_id}/escalate")
+async def escalate_session(
+    session_id: str,
+    body: SessionEscalateBody,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Record explicit user escalation intent (tap-to-escalate)."""
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id,
+            Session.user_id == current_user.id,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    if session.status != "active":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Session is not active")
+    return {
+        "ok": True,
+        "session_id": session.id,
+        "status": session.status,
+        "requested_state": "overwatch",
+        "trigger": (body.trigger or "user_tap").strip().lower() or "user_tap",
+    }

@@ -5,14 +5,20 @@ struct ActiveSessionView: View {
     let onEnd: (_ noteCount: Int) -> Void
 
     @State private var isEnding = false
+    @State private var isEscalating = false
     @State private var errorMessage: String?
     @State private var notes: [String] = []
     @State private var noteText: String = ""
+    @State private var hasGuardians = true
+    @State private var isDashcamOn = false
+    @State private var showStealthWarning = false
+    @State private var isInStealthMode = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
                 header
+                emergencyButton
                 notesList
                 noteInput
                 endButton
@@ -22,6 +28,23 @@ struct ActiveSessionView: View {
             .background(Color(uiColor: .systemBackground))
             .navigationTitle("Walk with me")
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                await loadGuardianState()
+            }
+            .fullScreenCover(isPresented: $isInStealthMode) {
+                StealthModeView(
+                    onExit: { isInStealthMode = false },
+                    onEscalate: { escalateSession(trigger: "stealth_manual") }
+                )
+            }
+            .alert("Enter Stealth Mode?", isPresented: $showStealthWarning) {
+                Button("Cancel", role: .cancel) {}
+                Button("Enter Stealth Mode") {
+                    isInStealthMode = true
+                }
+            } message: {
+                Text("Controlled high-risk mode. The screen will look harmless while monitoring stays active in the background.")
+            }
         }
     }
 
@@ -116,17 +139,53 @@ struct ActiveSessionView: View {
 
             HStack {
                 Button {
-                    // Placeholder: this will open the dashcam view later.
+                    if hasGuardians {
+                        isDashcamOn.toggle()
+                    }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "video.badge.ellipsis")
-                        Text("Dashcam")
+                        Image(systemName: isDashcamOn ? "video.fill.badge.checkmark" : "video.badge.ellipsis")
+                        Text(isDashcamOn ? "Dashcam on" : "Dashcam")
                     }
                 }
                 .font(.caption)
+                .foregroundStyle(isDashcamOn ? .red : .primary)
+                .disabled(!hasGuardians)
                 .padding(.horizontal, 24)
                 Spacer()
             }
+        }
+    }
+
+    private var emergencyButton: some View {
+        VStack(spacing: 6) {
+            HStack {
+                Button {
+                    showStealthWarning = true
+                } label: {
+                    Label("Enter Stealth Mode", systemImage: "eye.slash")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                Button {
+                    escalateSession()
+                } label: {
+                    Label(isEscalating ? "Requesting…" : "Request Overwatch", systemImage: "exclamationmark.shield")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+            }
+            .padding(.horizontal, 24)
+            .disabled(isEscalating || isEnding)
+
+            Text("Use Stealth Mode for discreet operation. Overwatch sends immediate manual escalation.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 24)
         }
     }
 
@@ -172,6 +231,53 @@ struct ActiveSessionView: View {
         }
     }
 
+    private func escalateSession(trigger: String = "user_tap") {
+        guard !isEscalating else { return }
+        errorMessage = nil
+        isEscalating = true
+        Task {
+            defer { Task { @MainActor in isEscalating = false } }
+            do {
+                let client = APIClient()
+                _ = try await client.post(
+                    "/api/v1/sessions/\(session.id)/escalate",
+                    body: SessionEscalateRequest(trigger: trigger)
+                ) as SessionEscalateResponse
+                await MainActor.run {
+                    errorMessage = "Help request sent. Stay on this screen."
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = (error as? APIError).map { err in
+                        switch err {
+                        case .httpStatus(400, _): return "Session is not active."
+                        case .httpStatus(404, _): return "Session not found."
+                        case .httpStatus(let code, _): return "Could not send help request (\(code))."
+                        default: return "Could not send help request."
+                        }
+                    } ?? "Could not send help request."
+                }
+            }
+        }
+    }
+
+    private func loadGuardianState() async {
+        do {
+            let client = APIClient()
+            let guardians: [GuardianResponse] = try await client.get("/api/v1/guardians")
+            await MainActor.run {
+                hasGuardians = !guardians.isEmpty
+                // Product rule: if user has no guardians, dashcam stays on for the whole session.
+                isDashcamOn = guardians.isEmpty ? true : isDashcamOn
+            }
+        } catch {
+            // Fail-safe: assume guardians exist to avoid forcing dashcam without certainty.
+            await MainActor.run {
+                hasGuardians = true
+            }
+        }
+    }
+
     private func doEndSession() async {
         defer { Task { @MainActor in isEnding = false } }
         do {
@@ -189,6 +295,63 @@ struct ActiveSessionView: View {
                     }
                 } ?? "Could not end session. Try again."
             }
+        }
+    }
+}
+
+private struct StealthModeView: View {
+    let onExit: () -> Void
+    let onEscalate: () -> Void
+
+    @State private var showExitControls = false
+    @State private var subtleStatus: String?
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if showExitControls {
+                VStack(spacing: 20) {
+                    Text("Stealth Mode Active")
+                        .font(.headline)
+                        .foregroundStyle(.white.opacity(0.9))
+
+                    if let subtleStatus {
+                        Text(subtleStatus)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.75))
+                    }
+
+                    Button("Exit Stealth") { onExit() }
+                        .buttonStyle(.borderedProminent)
+
+                    Button("Request Overwatch") {
+                        onEscalate()
+                        subtleStatus = "Overwatch requested"
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(24)
+            } else {
+                VStack {
+                    Spacer()
+                    Text("Hold anywhere for controls")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.2))
+                        .padding(.bottom, 24)
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onLongPressGesture(minimumDuration: 1.0) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showExitControls = true
+            }
+        }
+        .onTapGesture(count: 2) {
+            // Discreet fallback while controls are hidden.
+            onEscalate()
+            subtleStatus = "Overwatch requested"
         }
     }
 }
