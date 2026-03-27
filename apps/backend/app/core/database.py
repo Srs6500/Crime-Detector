@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import settings
 from app.models.user import Base
 from app.models import session  # noqa: F401 — register Session table with Base.metadata
+from app.models import guardian  # noqa: F401 — register Guardian, SavedLocation tables
 
 _connect_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):
