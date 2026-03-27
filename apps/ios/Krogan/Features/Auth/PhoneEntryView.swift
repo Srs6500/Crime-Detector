@@ -85,9 +85,21 @@ struct PhoneEntryView: View {
             await MainActor.run { sent = true }
         } catch {
             await MainActor.run {
-                errorMessage = "Failed to send code. Check number and try again."
+                errorMessage = messageForPhoneRequestError(error)
             }
         }
+    }
+
+    private func messageForPhoneRequestError(_ error: Error) -> String {
+        guard let apiError = error as? APIError, case .httpStatus(_, let data) = apiError else {
+            return "Failed to send code. Check number and try again."
+        }
+        struct DetailResponse: Decodable { let detail: String? }
+        if let decoded = try? JSONDecoder().decode(DetailResponse.self, from: data),
+           let detail = decoded.detail, !detail.isEmpty, detail.count < 120 {
+            return detail
+        }
+        return "Failed to send code. Check number and try again."
     }
 
     private func verifyCode() {

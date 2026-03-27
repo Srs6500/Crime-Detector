@@ -61,7 +61,7 @@ struct OnboardingView: View {
                 onNext: advance
             )
         case .ready:
-            ReadyStep(onFinish: finishOnboarding)
+            ReadyStep(onFinish: { Task { await finishOnboarding() } })
         }
     }
 
@@ -103,8 +103,31 @@ struct OnboardingView: View {
         }
     }
 
-    private func finishOnboarding() {
-        onboardingState.completeOnboarding()
+    private func finishOnboarding() async {
+        await syncGuardiansAndLocationsToBackend()
+        await MainActor.run {
+            onboardingState.completeOnboarding()
+        }
+    }
+
+    /// POST onboarding guardians and locations to the API. Best-effort; failures don't block completing onboarding.
+    private func syncGuardiansAndLocationsToBackend() async {
+        let client = APIClient()
+        for g in guardians where g.phone.hasPrefix("+") {
+            _ = try? await client.post("/api/v1/guardians", body: GuardianCreateRequest(
+                name: g.name,
+                phone: g.phone,
+                priority: g.priority
+            )) as GuardianResponse
+        }
+        for loc in locations {
+            _ = try? await client.post("/api/v1/locations", body: LocationCreateRequest(
+                kind: loc.kind,
+                name: loc.name,
+                latitude: nil,
+                longitude: nil
+            )) as SavedLocationResponse
+        }
     }
 }
 
@@ -193,7 +216,7 @@ private struct GuardiansStep: View {
             Text("Guardians")
                 .font(.title2)
                 .fontWeight(.semibold)
-            Text("Add people who can be notified when you start a session or if we detect a heads up. You can add more later.")
+            Text("Optional. Add people who can be notified when you start a session or if we detect a heads up. You can add or change them anytime in Settings.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -221,6 +244,14 @@ private struct GuardiansStep: View {
                 Label("Add guardian", systemImage: "person.badge.plus")
             }
             .buttonStyle(.bordered)
+
+            Button("I'll add guardians later") {
+                onNext()
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 8)
+
             Spacer()
         }
         .padding(24)

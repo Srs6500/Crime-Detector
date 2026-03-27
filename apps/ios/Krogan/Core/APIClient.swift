@@ -64,6 +64,20 @@ struct APIClient {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(U.self, from: data)
     }
+
+    func delete(_ path: String) async throws {
+        let url = URL(string: baseURL + path)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        if let token = token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if http.statusCode >= 400 {
+            throw APIError.httpStatus(http.statusCode, data: data)
+        }
+    }
 }
 
 // Session API types
@@ -91,6 +105,18 @@ struct SessionResponse: Decodable {
         self.startedAt = startedAt
         self.endedAt = endedAt
     }
+}
+
+struct SessionEscalateRequest: Encodable {
+    let trigger: String
+}
+
+struct SessionEscalateResponse: Decodable {
+    let ok: Bool
+    let sessionId: String
+    let status: String
+    let requestedState: String
+    let trigger: String
 }
 
 enum APIError: Error {
@@ -130,4 +156,34 @@ struct UserResponse: Decodable {
 struct PhoneRequestResponse: Decodable {
     let message: String
     let expiresIn: Int
+}
+
+// Guardian API types
+struct GuardianResponse: Decodable {
+    let id: String
+    let name: String
+    let phone: String
+    let priority: Int
+}
+
+struct GuardianCreateRequest: Encodable {
+    let name: String
+    let phone: String
+    let priority: Int
+}
+
+// Saved location API types
+struct SavedLocationResponse: Decodable {
+    let id: String
+    let kind: String
+    let name: String
+    let latitude: Double?
+    let longitude: Double?
+}
+
+struct LocationCreateRequest: Encodable {
+    let kind: String
+    let name: String
+    let latitude: Double?
+    let longitude: Double?
 }

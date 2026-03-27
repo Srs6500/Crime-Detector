@@ -21,6 +21,7 @@
 		A1000012 /* SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000013 /* SessionModels.swift */; };
 		A1000013 /* SessionSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000014 /* SessionSetupView.swift */; };
 		A1000014 /* ActiveSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000015 /* ActiveSessionView.swift */; };
+		A1000016 /* ManageGuardiansView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000016 /* ManageGuardiansView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +40,7 @@
 		A2000013 /* SessionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionModels.swift; sourceTree = "<group>"; };
 		A2000014 /* SessionSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSetupView.swift; sourceTree = "<group>"; };
 		A2000015 /* ActiveSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSessionView.swift; sourceTree = "<group>"; };
+		A2000016 /* ManageGuardiansView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageGuardiansView.swift; sourceTree = "<group>"; };
 		A3000001 /* Krogan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Krogan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -106,10 +108,19 @@
 			isa = PBXGroup;
 			children = (
 				A5000008 /* Auth */,
+				A5000011 /* Guardians */,
 				A5000009 /* Onboarding */,
 				A5000010 /* Session */,
 			);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		A5000011 /* Guardians */ = {
+			isa = PBXGroup;
+			children = (
+				A2000016 /* ManageGuardiansView.swift */,
+			);
+			path = Guardians;
 			sourceTree = "<group>";
 		};
 		A5000010 /* Session */ = {
@@ -216,6 +227,7 @@
 				A1000012 /* SessionModels.swift in Sources */,
 				A1000013 /* SessionSetupView.swift in Sources */,
 				A1000014 /* ActiveSessionView.swift in Sources */,
+				A1000016 /* ManageGuardiansView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

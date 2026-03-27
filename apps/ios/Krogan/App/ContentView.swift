@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var showingActiveSession = false
     @State private var sessionError: String?
     @State private var isStartingSession = false
+    @State private var showingGuardians = false
+    @State private var showingSettings = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -68,6 +70,15 @@ struct ContentView: View {
 
             Spacer()
 
+            Button {
+                showingSettings = true
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.bottom, 8)
+
             Button("Sign out") {
                 authState.signOut()
             }
@@ -87,6 +98,12 @@ struct ContentView: View {
                 showingSessionSheet = false
                 startSession(draft)
             }
+        }
+        .sheet(isPresented: $showingGuardians) {
+            ManageGuardiansView()
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsSheet(showingGuardians: $showingGuardians)
         }
         .fullScreenCover(isPresented: $showingActiveSession) {
             if let session = activeSession {
@@ -167,6 +184,47 @@ struct ContentView: View {
             }
         } catch {
             // If this fails we just skip restoring; auth errors are already handled elsewhere.
+        }
+    }
+}
+
+private struct SettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var showingGuardians: Bool
+    @State private var showLocationsPlaceholder = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Safety") {
+                    Button {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            showingGuardians = true
+                        }
+                    } label: {
+                        Label("Manage guardians", systemImage: "person.2")
+                    }
+
+                    Button {
+                        showLocationsPlaceholder = true
+                    } label: {
+                        Label("Manage locations", systemImage: "mappin.and.ellipse")
+                    }
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .alert("Coming soon", isPresented: $showLocationsPlaceholder) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Location management will be added in the next step.")
+            }
         }
     }
 }
